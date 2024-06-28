@@ -1,0 +1,5 @@
+*.so
+*.tar.gz
+
+dev/objs/**
+dev/src/**

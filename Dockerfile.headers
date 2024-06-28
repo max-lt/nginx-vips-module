@@ -1,0 +1,29 @@
+FROM nginx:1.27.0-alpine3.19
+
+RUN apk add \
+  gcc \
+  libc-dev \
+  make \
+  zlib-dev \
+  gnupg \
+  gd-dev
+
+# Download and extract nginx source code
+RUN curl -fSL http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz -o nginx.tar.gz \
+  && mkdir -p /usr/src \
+  && tar -zxC /usr/src -f nginx.tar.gz \
+  && rm nginx.tar.gz
+
+RUN cd /usr/src/nginx-${NGINX_VERSION} \
+  && ./configure \
+    --without-http_rewrite_module \
+    --without-http_gzip_module \
+    --without-http_fastcgi_module \
+    --without-http_uwsgi_module \
+    --without-http_scgi_module \
+    --without-http_grpc_module \
+    --without-http_geo_module \
+    --without-mail_pop3_module \
+    --without-mail_imap_module \
+    --without-mail_smtp_module \
+    --without-quic_bpf_module 
