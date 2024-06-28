@@ -1,5 +1,6 @@
-# nginx-foo-module
-Boilerplate for nginx module
+# nginx-vips-module
+
+VIPS module for nginx
 
 ## Development env
 ### Copy nginx source code into working directory
@@ -7,7 +8,7 @@ Boilerplate for nginx module
 # copy nginx source code into dev/src (for editor completion)
 make setup-dev-headers
 
-# For MacOS, replace NGX_LINUX by NGX_DARWIN in dev/objs/ngx_auto_headers.h
+# For MacOS, remove NGX_HAVE_BPF and replace NGX_LINUX by NGX_DARWIN in dev/objs/ngx_auto_headers.h
 ```
 
 ## Build image

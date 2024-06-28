@@ -14,10 +14,10 @@ setup-dev-headers: cleanup-dev-headers docker-dev-headers-image
 	@docker run nginx-headers tar -c ${ngx_dir}/src ${ngx_dir}/objs | tar x -C ${scriptpath}/dev --strip-components 3 "*.h"
 
 docker-image:
-	@docker build -t foo-nginx .
+	@docker build --progress plain -t nginx-vips .
 
-docker-run:
-	@docker run --rm --name foo-nginx-container -p 8000:80 -v ${scriptpath}/dev/nginx.conf:/etc/nginx/nginx.conf:ro foo-nginx
+docker-run: docker-image src/ngx_http_vips_module.c
+	@docker run --rm --name nginx-vips-container -p 8000:80 -v ${scriptpath}/dev/nginx.conf:/etc/nginx/nginx.conf:ro nginx-vips
 
 clear:
 	@rm -r $(keys_path)

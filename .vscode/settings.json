@@ -2,5 +2,9 @@
   "files.insertFinalNewline": true,
   "files.associations": {
     "*.h": "c"
-  }
+  },
+  "cSpell.words": [
+    "lvips",
+    "srcs"
+  ]
 }
