@@ -5,16 +5,18 @@
 
 #include "ngx_http_vips_module.h"
 #include "var_version.h"
-#include "handler.h"
+#include "var_original_size.h"
+#include "body_filter.h"
+#include "header_filter.h"
 
 // Configuration functions
-static ngx_int_t ngx_http_vips_init(ngx_conf_t *cf);
+static ngx_int_t ngx_http_vips_filter_init(ngx_conf_t *cf);
 static ngx_int_t ngx_http_vips_add_variables(ngx_conf_t *cf);
 static void *ngx_http_vips_create_conf(ngx_conf_t *cf);
 static char *ngx_http_vips_merge_conf(ngx_conf_t *cf, void *parent, void *child);
 
 static ngx_command_t ngx_http_vips_commands[] = {
-    // Syntax: vips off | on;
+    // Syntax: vips off | on; Default: vips off;
     {ngx_string("vips"),
      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_FLAG,
      ngx_conf_set_flag_slot,
@@ -26,11 +28,13 @@ static ngx_command_t ngx_http_vips_commands[] = {
 
 static ngx_http_variable_t ngx_http_vips_vars[] = {
     {ngx_string("vips_version"), NULL, ngx_http_vips_get_version, 0, 0, 0},
+    {ngx_string("vips_image_size"), NULL, ngx_http_vips_get_size, 0, 0, 0},
     ngx_http_null_variable};
 
+// https://nginx.org/en/docs/dev/development_guide.html#http_response_body_filters
 static ngx_http_module_t ngx_http_vips_module_ctx = {
     ngx_http_vips_add_variables, /* preconfiguration */
-    ngx_http_vips_init,          /* postconfiguration */
+    ngx_http_vips_filter_init,   /* postconfiguration */
 
     NULL, /* create main configuration */
     NULL, /* init main configuration */
@@ -42,6 +46,7 @@ static ngx_http_module_t ngx_http_vips_module_ctx = {
     ngx_http_vips_merge_conf   /* merge location configuration */
 };
 
+// Global variables
 ngx_module_t ngx_http_vips_module = {
     NGX_MODULE_V1,
     &ngx_http_vips_module_ctx, /* module context */
@@ -55,9 +60,6 @@ ngx_module_t ngx_http_vips_module = {
     NULL,                      /* exit process */
     NULL,                      /* exit master */
     NGX_MODULE_V1_PADDING};
-
-// static ngx_http_output_header_filter_pt ngx_http_next_header_filter;
-// static ngx_http_output_body_filter_pt ngx_http_next_body_filter;
 
 static ngx_int_t ngx_http_vips_add_variables(ngx_conf_t *cf)
 {
@@ -78,23 +80,18 @@ static ngx_int_t ngx_http_vips_add_variables(ngx_conf_t *cf)
   return NGX_OK;
 }
 
-static ngx_int_t ngx_http_vips_init(ngx_conf_t *cf)
+static ngx_int_t ngx_http_vips_filter_init(ngx_conf_t *cf)
 {
-  ngx_http_handler_pt *h;
-  ngx_http_core_main_conf_t *cmcf;
-
-  cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
-
   //
+  ngx_conf_log_error(NGX_LOG_WARN, cf, 0, "vips filter init");
+
   VIPS_INIT("nginx");
 
-  h = ngx_array_push(&cmcf->phases[NGX_HTTP_CONTENT_PHASE].handlers);
-  if (h == NULL)
-  {
-    return NGX_ERROR;
-  }
+  // Insert the vips filter before the default header filter
+  register_vips_body_filter(cf, &ngx_http_top_body_filter);
 
-  *h = ngx_http_vips_handler;
+  // Insert the vips filter before the default body filter
+  register_vips_header_filter(cf, &ngx_http_top_header_filter);
 
   return NGX_OK;
 }

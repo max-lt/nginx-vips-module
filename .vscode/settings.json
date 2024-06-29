@@ -1,11 +1,18 @@
 {
   "files.insertFinalNewline": true,
   "files.associations": {
-    "*.h": "c"
+    "*.h": "c",
+    "unordered_map": "c",
+    "array": "c",
+    "string": "c",
+    "string_view": "c",
+    "vector": "c",
+    "complex": "c"
   },
   "cSpell.words": [
     "cpymem",
     "lvips",
+    "pnalloc",
     "preconfiguration",
     "srcs"
   ]
