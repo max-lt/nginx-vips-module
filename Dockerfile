@@ -12,8 +12,7 @@ RUN apk add --no-cache --virtual .build-deps \
   make \
   linux-headers \
   curl \
-  vips-dev \
-  glib-dev
+  vips-dev
 
 # Download and extract nginx source code
 RUN mkdir -p /usr/src \

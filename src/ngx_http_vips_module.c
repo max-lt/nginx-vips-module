@@ -5,7 +5,7 @@
 
 typedef struct
 {
-  ngx_str_t vips;
+  ngx_flag_t vips;
 } ngx_http_vips_loc_conf_t;
 
 static ngx_int_t ngx_http_vips_handler(ngx_http_request_t *r);
@@ -16,10 +16,10 @@ static void *ngx_http_vips_create_conf(ngx_conf_t *cf);
 static char *ngx_http_vips_merge_conf(ngx_conf_t *cf, void *parent, void *child);
 
 static ngx_command_t ngx_http_vips_commands[] = {
-    // vips $variable | off | on;
+    // Syntax: vips off | on;
     {ngx_string("vips"),
-     NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-     ngx_conf_set_str_slot,
+     NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_FLAG,
+     ngx_conf_set_flag_slot,
      NGX_HTTP_LOC_CONF_OFFSET,
      offsetof(ngx_http_vips_loc_conf_t, vips),
      NULL},
@@ -59,19 +59,21 @@ static ngx_int_t ngx_http_vips_handler(ngx_http_request_t *r)
   const ngx_http_vips_loc_conf_t *conf;
   conf = ngx_http_get_module_loc_conf(r, ngx_http_vips_module);
 
+  ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "vips: %V", &conf->vips);
+
+  // Decline if vips is off
+  if (!conf->vips)
+  {
+    return NGX_DECLINED;
+  }
+
   ngx_chain_t out;
   ngx_int_t rc;
   ngx_buf_t *b;
-
-  b = ngx_create_temp_buf(r->pool, conf->vips.len);
-  if (b == NULL)
-  {
-    ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
-    return NGX_DONE;
-  }
+  ngx_str_t message = ngx_string("Hello, VIPS!");
 
   r->headers_out.status = NGX_HTTP_OK;
-  r->headers_out.content_length_n = conf->vips.len;
+  r->headers_out.content_length_n = message.len;
   ngx_str_set(&r->headers_out.content_type, "text/plain");
 
   /* Set header X-Foo: vips */
@@ -82,7 +84,7 @@ static ngx_int_t ngx_http_vips_handler(ngx_http_request_t *r)
   }
 
   h->hash = 1;
-  ngx_str_set(&h->key, "ETag");
+  ngx_str_set(&h->key, "X-VIPS");
   ngx_str_set(&h->value, "vips");
 
   rc = ngx_http_send_header(r);
@@ -94,8 +96,13 @@ static ngx_int_t ngx_http_vips_handler(ngx_http_request_t *r)
   }
 
   // Write to buffer
-  size_t len = ngx_min(((size_t)(b->end - b->pos)), conf->vips.len);
-  b->last = ngx_copy(b->pos, conf->vips.data, len);
+  b = ngx_create_temp_buf(r->pool, message.len);
+  if (b == NULL)
+  {
+    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+  }
+
+  b->last = ngx_cpymem(b->pos, message.data, message.len);
   b->last_buf = 1;
   b->last_in_chain = 1;
 
@@ -118,7 +125,7 @@ static ngx_int_t ngx_http_vips_init(ngx_conf_t *cf)
   //
   VIPS_INIT("nginx");
 
-  h = ngx_array_push(&cmcf->phases[NGX_HTTP_PRECONTENT_PHASE].handlers);
+  h = ngx_array_push(&cmcf->phases[NGX_HTTP_CONTENT_PHASE].handlers);
   if (h == NULL)
   {
     return NGX_ERROR;
@@ -140,8 +147,7 @@ static void *ngx_http_vips_create_conf(ngx_conf_t *cf)
     return NULL;
   }
 
-  // Initialize variables
-  ngx_str_null(&conf->vips);
+  conf->vips = NGX_CONF_UNSET;
 
   return conf;
 }
@@ -151,7 +157,11 @@ static char *ngx_http_vips_merge_conf(ngx_conf_t *cf, void *parent, void *child)
   ngx_http_vips_loc_conf_t *prev = parent;
   ngx_http_vips_loc_conf_t *conf = child;
 
-  ngx_conf_merge_str_value(conf->vips, prev->vips, "");
+  ngx_conf_log_error(NGX_LOG_ERR, cf, 0, "vips merge conf: %d -> %d", prev->vips, conf->vips);
+
+  ngx_conf_merge_value(conf->vips, prev->vips, 0);
+
+  ngx_conf_log_error(NGX_LOG_ERR, cf, 0, "vips merged conf: %d -> %d", prev->vips, conf->vips);
 
   return NGX_CONF_OK;
 }

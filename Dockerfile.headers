@@ -1,19 +1,15 @@
-FROM alpine:3.19
+FROM nginx:1.27.0-alpine3.19-slim
 
-ARG NGINX_VERSION=1.27.0
-
-RUN apk add \
+RUN apk add --no-cache --virtual .build-deps \
   gcc \
   libc-dev \
+  vips-dev \
   make \
-  curl \
-  vips-dev
+  curl
 
 # Download and extract nginx source code
-RUN curl -fSL http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz -o nginx.tar.gz \
-  && mkdir -p /usr/src \
-  && tar -zxC /usr/src -f nginx.tar.gz \
-  && rm nginx.tar.gz
+RUN mkdir -p /usr/src \
+  && curl -fSL http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz | tar -zxC /usr/src
 
 RUN cd /usr/src/nginx-${NGINX_VERSION} \
   && ./configure \

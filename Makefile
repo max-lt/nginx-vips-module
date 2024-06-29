@@ -16,8 +16,12 @@ setup-dev-headers: cleanup-dev-headers docker-dev-headers-image
 docker-image:
 	@docker build --progress plain -t nginx-vips .
 
+# make docker-run ARGS="-d" to run in detached mode
 docker-run: docker-image src/ngx_http_vips_module.c
-	@docker run --rm --name nginx-vips-container -p 8000:80 -v ${scriptpath}/dev/nginx.conf:/etc/nginx/nginx.conf:ro nginx-vips
+	@docker run --rm --name nginx-vips-container $$ARGS \
+		-p 8000:80 \
+		-v ${scriptpath}/dev/nginx.conf:/etc/nginx/nginx.conf:ro \
+		nginx-vips
 
 clear:
 	@rm -r $(keys_path)
