@@ -3,6 +3,8 @@
 #include <ngx_http.h>
 #include <vips/vips.h>
 
+#include "var_version.h"
+
 typedef struct
 {
   ngx_flag_t vips;
@@ -12,6 +14,7 @@ static ngx_int_t ngx_http_vips_handler(ngx_http_request_t *r);
 
 // Configuration functions
 static ngx_int_t ngx_http_vips_init(ngx_conf_t *cf);
+static ngx_int_t ngx_http_vips_add_variables(ngx_conf_t *cf);
 static void *ngx_http_vips_create_conf(ngx_conf_t *cf);
 static char *ngx_http_vips_merge_conf(ngx_conf_t *cf, void *parent, void *child);
 
@@ -26,9 +29,13 @@ static ngx_command_t ngx_http_vips_commands[] = {
 
     ngx_null_command};
 
+static ngx_http_variable_t ngx_http_vips_vars[] = {
+    {ngx_string("vips_version"), NULL, ngx_http_vips_get_version, 0, 0, 0},
+    ngx_http_null_variable};
+
 static ngx_http_module_t ngx_http_vips_module_ctx = {
-    NULL,               /* preconfiguration */
-    ngx_http_vips_init, /* postconfiguration */
+    ngx_http_vips_add_variables, /* preconfiguration */
+    ngx_http_vips_init,          /* postconfiguration */
 
     NULL, /* create main configuration */
     NULL, /* init main configuration */
@@ -54,23 +61,24 @@ ngx_module_t ngx_http_vips_module = {
     NULL,                      /* exit master */
     NGX_MODULE_V1_PADDING};
 
+// static ngx_http_output_header_filter_pt ngx_http_next_header_filter;
+// static ngx_http_output_body_filter_pt ngx_http_next_body_filter;
+
 static ngx_int_t ngx_http_vips_handler(ngx_http_request_t *r)
 {
   const ngx_http_vips_loc_conf_t *conf;
   conf = ngx_http_get_module_loc_conf(r, ngx_http_vips_module);
 
-  ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "vips: %V", &conf->vips);
-
-  // Decline if vips is off
-  if (!conf->vips)
-  {
-    return NGX_DECLINED;
-  }
-
   ngx_chain_t out;
   ngx_int_t rc;
   ngx_buf_t *b;
   ngx_str_t message = ngx_string("Hello, VIPS!");
+
+  // Decline if vips is off
+  if (conf->vips < 1)
+  {
+    return NGX_DECLINED;
+  }
 
   r->headers_out.status = NGX_HTTP_OK;
   r->headers_out.content_length_n = message.len;
@@ -84,35 +92,55 @@ static ngx_int_t ngx_http_vips_handler(ngx_http_request_t *r)
   }
 
   h->hash = 1;
-  ngx_str_set(&h->key, "X-VIPS");
+  ngx_str_set(&h->key, "X-Vips");
   ngx_str_set(&h->value, "vips");
 
   rc = ngx_http_send_header(r);
 
   if (rc == NGX_ERROR || rc > NGX_OK || r->header_only)
   {
-    ngx_http_finalize_request(r, rc);
-    return NGX_DONE;
+    return rc;
   }
 
-  // Write to buffer
-  b = ngx_create_temp_buf(r->pool, message.len);
+  /* send body */
+
+  b = ngx_calloc_buf(r->pool);
   if (b == NULL)
   {
-    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    return NGX_ERROR;
   }
 
-  b->last = ngx_cpymem(b->pos, message.data, message.len);
-  b->last_buf = 1;
+  b->last_buf = (r == r->main) ? 1 : 0;
   b->last_in_chain = 1;
+
+  b->memory = 1;
+
+  b->pos = message.data;
+  b->last = b->pos + message.len;
 
   out.buf = b;
   out.next = NULL;
 
-  rc = ngx_http_output_filter(r, &out);
-  ngx_http_finalize_request(r, rc);
+  return ngx_http_output_filter(r, &out);
+}
 
-  return NGX_DONE;
+static ngx_int_t ngx_http_vips_add_variables(ngx_conf_t *cf)
+{
+  ngx_http_variable_t *var, *v;
+
+  for (v = ngx_http_vips_vars; v->name.len; v++)
+  {
+    var = ngx_http_add_variable(cf, &v->name, v->flags);
+    if (var == NULL)
+    {
+      return NGX_ERROR;
+    }
+
+    var->get_handler = v->get_handler;
+    var->data = v->data;
+  }
+
+  return NGX_OK;
 }
 
 static ngx_int_t ngx_http_vips_init(ngx_conf_t *cf)

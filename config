@@ -2,7 +2,7 @@ ngx_addon_name=ngx_http_vips_module
 
 ngx_module_type=HTTP
 ngx_module_name=ngx_http_vips_module
-ngx_module_srcs="$ngx_addon_dir/src/ngx_http_vips_module.c"
+ngx_module_srcs="$ngx_addon_dir/src/*.c"
 ngx_module_libs="-lvips"
 ngx_module_incs="/usr/include/glib-2.0"
 

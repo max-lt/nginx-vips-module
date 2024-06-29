@@ -12,7 +12,8 @@ RUN apk add --no-cache --virtual .build-deps \
   make \
   linux-headers \
   curl \
-  vips-dev
+  vips-dev \
+  gd-dev
 
 # Download and extract nginx source code
 RUN mkdir -p /usr/src \
@@ -26,12 +27,13 @@ RUN ln -sf /usr/lib/glib-2.0/include/glibconfig.h /usr/include/glib-2.0/glibconf
 RUN cd /usr/src/nginx-${NGINX_VERSION} \
   && ./configure \
     --with-compat \
+    --with-http_image_filter_module=dynamic \
     --add-dynamic-module=$VIPS_MODULE_PATH \
   && make modules
 
 # Add module to base image
 FROM base as nginx-vips
 
-RUN apk add vips
+RUN apk add vips gd
 
 COPY --from=builder /usr/src/nginx-${NGINX_VERSION}/objs/*.so /etc/nginx/modules/

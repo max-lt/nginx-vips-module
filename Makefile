@@ -14,7 +14,7 @@ setup-dev-headers: cleanup-dev-headers docker-dev-headers-image
 	@docker run nginx-headers tar -c ${ngx_dir}/src ${ngx_dir}/objs | tar x -C ${scriptpath}/dev --strip-components 3 "*.h"
 
 docker-image:
-	@docker build --progress plain -t nginx-vips .
+	@docker build --progress plain -t nginx-vips -f Dockerfile.dev .
 
 # make docker-run ARGS="-d" to run in detached mode
 docker-run: docker-image src/ngx_http_vips_module.c

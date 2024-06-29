@@ -4,7 +4,9 @@
     "*.h": "c"
   },
   "cSpell.words": [
+    "cpymem",
     "lvips",
+    "preconfiguration",
     "srcs"
   ]
 }
